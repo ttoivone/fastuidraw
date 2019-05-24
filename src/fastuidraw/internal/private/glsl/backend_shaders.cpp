@@ -463,9 +463,10 @@ build_uber_stroke_varyings(uint32_t flags) const
         .add_float("fastuidraw_arc_stroking_relative_to_center_y")
         .add_float("fastuidraw_arc_stroking_arc_radius")
         .add_float("fastuidraw_arc_stroking_stroke_radius")
-        .add_float("fastuidraw_arc_stroking_distance_sub_edge_start")
-        .add_float("fastuidraw_arc_stroking_distance_sub_edge_end")
-        .add_float("fastuidraw_arc_stroking_distance")
+        .add_float("fastuidraw_arc_shader_stroking_distance_real")
+        .add_float("fastuidraw_arc_shader_stroking_distance_sub_edge_start")
+        .add_float("fastuidraw_arc_shader_stroking_distance_sub_edge_end")
+        .add_float("fastuidraw_arc_shader_stroking_distance")
         .add_uint("fastuidraw_arc_stroking_dash_bits");
     }
   else
@@ -473,9 +474,10 @@ build_uber_stroke_varyings(uint32_t flags) const
       return_value
         .add_float("fastuidraw_stroking_on_boundary")
         .add_float("fastuidraw_stroking_on_contour_boundary")
-        .add_float("fastuidraw_stroking_distance")
-        .add_float("fastuidraw_stroking_distance_sub_edge_start")
-        .add_float("fastuidraw_stroking_distance_sub_edge_end")
+        .add_float("fastuidraw_shader_stroking_distance_real")
+        .add_float("fastuidraw_stroking_shader_distance")
+        .add_float("fastuidraw_stroking_shader_distance_sub_edge_start")
+        .add_float("fastuidraw_stroking_shader_distance_sub_edge_end")
         .add_uint("fastuidraw_stroking_dash_bits");
     }
 
@@ -547,10 +549,20 @@ PainterItemCoverageShaderGLSL*
 StrokeShaderCreator::
 build_uber_stroke_coverage_shader(uint32_t flags, unsigned int num_sub_shaders) const
 {
+  symbol_list symbols(build_uber_stroke_varyings(flags));
+  PainterItemCoverageShaderGLSL *p;
+
+  symbols.m_vert_shareable_values
+    .add_float("fastuidraw_stroking_distance");
+
+  symbols.m_frag_shareable_values
+    .add_float("fastuidraw_stroking_relative_distance_from_center")
+    .add_float("fastuidraw_stroking_distance");
+
   flags |= coverage_shader;
   return FASTUIDRAWnew PainterItemCoverageShaderGLSL(build_uber_stroke_source(flags, true),
                                                      build_uber_stroke_source(flags, false),
-                                                     build_uber_stroke_varyings(flags),
+                                                     symbols,
                                                      num_sub_shaders);
 }
 
@@ -558,10 +570,21 @@ PainterItemShaderGLSL*
 StrokeShaderCreator::
 build_uber_stroke_shader(uint32_t flags, unsigned int num_sub_shaders) const
 {
+  symbol_list symbols(build_uber_stroke_varyings(flags));
+
+  symbols.m_vert_shareable_values.add_float("fastuidraw_stroking_distance");
+  if ((flags & coverage_shader) == 0)
+    {
+      symbols.m_frag_shareable_values
+        .add_float("fastuidraw_stroking_distance")
+        .add_float("fastuidraw_stroking_relative_distance_from_center");
+      FASTUIDRAWassert(symbols.m_frag_shareable_values.shareable_values(shareable_value_list::type_float).size() == 2);
+    }
+
   return FASTUIDRAWnew PainterItemShaderGLSL(flags & discard_shader,
                                              build_uber_stroke_source(flags, true),
                                              build_uber_stroke_source(flags, false),
-                                             build_uber_stroke_varyings(flags),
+                                             symbols,
                                              num_sub_shaders);
 }
 
